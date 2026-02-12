@@ -130,9 +130,7 @@ def main(args):
 
 
 def parse_args():
-    parser = FlexibleArgumentParser(
-        description="Offline MOSS-TTS inference via vLLM Omni"
-    )
+    parser = FlexibleArgumentParser(description="Offline MOSS-TTS inference via vLLM Omni")
     parser.add_argument(
         "--sample",
         type=str,

@@ -11,9 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import torch
 import torch.nn.functional as F
-from typing import Optional
 
 
 def apply_top_k(logits, top_k):
@@ -110,7 +110,7 @@ def apply_repetition_penalty_delay_pattern(
 
 def sample_token(
     logits,
-    prev_tokens: Optional[torch.LongTensor] = None,
+    prev_tokens: torch.LongTensor | None = None,
     repetition_penalty: float = 1.0,
     top_p=None,
     top_k=None,

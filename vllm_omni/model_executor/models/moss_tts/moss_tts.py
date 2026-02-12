@@ -76,10 +76,17 @@ class MossTTSModelForGeneration(nn.Module):
                 runtime_additional_information[key] = value[0]
 
         # During profile/warmup runs, text is empty and no real inputs exist.
-        # Cap generation steps so the full pipeline executes but exits quickly.
+        # Return dummy audio immediately to avoid issues with short generation.
         if not text:
-            logger.info("Profile run detected (empty text). Capping max_new_tokens to 2.")
-            runtime_additional_information["max_new_tokens"] = 2
+            logger.info("Profile run detected (empty text). Returning dummy audio.")
+            dummy_audio = torch.zeros(2400, dtype=torch.float32)  # 0.1s of silence at 24kHz
+            return OmniOutput(
+                text_hidden_states=None,
+                multimodal_outputs={
+                    "model_outputs": dummy_audio,
+                    "sr": torch.tensor(24000, dtype=torch.int),
+                },
+            )
 
         result = self.model.generate_speech(
             text=text,
@@ -270,9 +277,8 @@ class MossTTSModel:
 
         tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path, trust_remote_code=True)
 
-        audio_tokenizer = AutoModel.from_pretrained(
-            codec_path, trust_remote_code=True, torch_dtype=torch.bfloat16
-        )
+        # Audio tokenizer must be float32 for decoding compatibility
+        audio_tokenizer = AutoModel.from_pretrained(codec_path, trust_remote_code=True, torch_dtype=torch.float32)
 
         from .processing_moss_tts import MossTTSDelayProcessor
 

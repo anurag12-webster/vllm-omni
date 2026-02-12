@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2026 OpenMOSS and the HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,12 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" MossTTSDelay model configuration """
+"""MossTTSDelay model configuration"""
 
-from typing import Optional, Union
 from transformers.configuration_utils import PretrainedConfig
-from transformers.utils import logging
 from transformers.models.qwen3 import Qwen3Config
+from transformers.utils import logging
 
 logger = logging.get_logger(__name__)
 
@@ -37,17 +35,17 @@ class MossTTSDelayConfig(PretrainedConfig):
         initializer_range (`float`, *optional*, defaults to 0.02):
             The standard deviation of the truncated_normal_initializer for initializing all weight matrices.
         n_vq (`int`, *optional*, defaults to 32):
-            Number of additional VQ (Vector Quantization) heads/channels for audio. 
+            Number of additional VQ (Vector Quantization) heads/channels for audio.
             Determines the number of codebooks used in the audio representation.
         audio_vocab_size (`int`, *optional*, defaults to 1024):
             Vocabulary size for the audio tokens (codebooks 1 to N).
         audio_user_slot_token_id (`int`, *optional*, defaults to 151654):
             The specific token ID used as a placeholder/slot for user-side audio inputs in the prompt.
         audio_assistant_gen_slot_token_id (`int`, *optional*, defaults to 151656):
-            The specific token ID representing the generation slot for the assistant's audio output. 
+            The specific token ID representing the generation slot for the assistant's audio output.
             Acting as the trigger for the TTS generation process.
         audio_assistant_delay_slot_token_id (`int`, *optional*, defaults to 151662):
-            The token ID used in the 'Delay Pattern' paradigm to represent the delayed/offset positions 
+            The token ID used in the 'Delay Pattern' paradigm to represent the delayed/offset positions
             between different VQ channels.
         audio_start_token_id (`int`, *optional*, defaults to 151652):
             Special token ID used to denote the start of an audio sequence in the stream.
@@ -56,12 +54,13 @@ class MossTTSDelayConfig(PretrainedConfig):
         audio_pad_code (`int`, *optional*, defaults to 1024):
             The padding value used within the audio VQ codebooks. Typically equals `audio_vocab_size`.
     """
+
     model_type = "moss_tts_delay"
     keys_to_ignore_at_inference = ["past_key_values"]
 
     def __init__(
         self,
-        language_config: Optional[Union[Qwen3Config, dict]] = None,
+        language_config: Qwen3Config | dict | None = None,
         initializer_range: float = 0.02,
         n_vq: int = 32,
         pad_token_id: int = 151643,
@@ -109,7 +108,6 @@ class MossTTSDelayConfig(PretrainedConfig):
         self.im_start_token_id = im_start_token_id
         self.im_end_token_id = im_end_token_id
 
-        
         super().__init__(**kwargs)
 
     def get_text_config(self, **kwargs):
