@@ -27,7 +27,19 @@ def _register_omni_hf_configs() -> None:
         AutoConfig.register("qwen3_tts", Qwen3TTSConfig)
     except ValueError:
         # Already registered elsewhere; ignore.
-        return
+        pass
+
+    try:
+        from vllm_omni.model_executor.models.moss_tts.configuration_moss_tts import (
+            MossTTSDelayConfig,
+        )
+
+        AutoConfig.register("moss_tts_delay", MossTTSDelayConfig)
+    except ValueError:
+        # Already registered elsewhere; ignore.
+        pass
+    except Exception as exc:  # pragma: no cover - best-effort optional registration
+        logger.warning("Skipping moss_tts HF config registration due to import error: %s", exc)
 
 
 def register_omni_models_to_vllm():
@@ -130,6 +142,11 @@ class OmniEngineArgs(EngineArgs):
         }
         stage_connector_config["extra"]["stage_id"] = self.stage_id
 
+        # Force local HF config classes only for MOSS-TTS to avoid remote-config
+        # mismatches while preserving existing trust_remote_code behavior for other models.
+        saved_trust = self.trust_remote_code
+        config_trust_remote_code = False if self.model_arch == "MossTTSDelayModel" else self.trust_remote_code
+
         # Create OmniModelConfig directly from engine args
         # Note: We pass the actual init parameters matching vLLM's EngineArgs.create_model_config()
         omni_config = OmniModelConfig(
@@ -141,7 +158,7 @@ class OmniEngineArgs(EngineArgs):
             convert=self.convert,
             tokenizer=self.tokenizer,
             tokenizer_mode=self.tokenizer_mode,
-            trust_remote_code=self.trust_remote_code,
+            trust_remote_code=config_trust_remote_code,
             allowed_local_media_path=self.allowed_local_media_path,
             allowed_media_domains=self.allowed_media_domains,
             dtype=self.dtype,
@@ -198,6 +215,7 @@ class OmniEngineArgs(EngineArgs):
             stage_connector_config=stage_connector_config,
             omni_kv_config=self.omni_kv_config,
         )
+        omni_config.trust_remote_code = saved_trust
         omni_config.hf_config.architectures = omni_config.architectures
 
         return omni_config
@@ -286,6 +304,11 @@ class AsyncOmniEngineArgs(AsyncEngineArgs):
         }
         stage_connector_config["extra"]["stage_id"] = self.stage_id
 
+        # Force local HF config classes only for MOSS-TTS to avoid remote-config
+        # mismatches while preserving existing trust_remote_code behavior for other models.
+        saved_trust = self.trust_remote_code
+        config_trust_remote_code = False if self.model_arch == "MossTTSDelayModel" else self.trust_remote_code
+
         # Create OmniModelConfig directly from engine args
         # Note: We pass the actual init parameters matching vLLM's EngineArgs.create_model_config()
         omni_config = OmniModelConfig(
@@ -297,7 +320,7 @@ class AsyncOmniEngineArgs(AsyncEngineArgs):
             convert=self.convert,
             tokenizer=self.tokenizer,
             tokenizer_mode=self.tokenizer_mode,
-            trust_remote_code=self.trust_remote_code,
+            trust_remote_code=config_trust_remote_code,
             allowed_local_media_path=self.allowed_local_media_path,
             allowed_media_domains=self.allowed_media_domains,
             dtype=self.dtype,
@@ -354,6 +377,7 @@ class AsyncOmniEngineArgs(AsyncEngineArgs):
             stage_connector_config=stage_connector_config,
             omni_kv_config=self.omni_kv_config,
         )
+        omni_config.trust_remote_code = saved_trust
         omni_config.hf_config.architectures = omni_config.architectures
 
         return omni_config

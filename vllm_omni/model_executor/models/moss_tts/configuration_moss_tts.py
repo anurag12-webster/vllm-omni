@@ -95,15 +95,25 @@ class MossTTSDelayConfig(PretrainedConfig):
         self.audio_pad_code = audio_pad_code
         self.sampling_rate = sampling_rate
 
+        # Mirror key text-config attributes at top level so vLLM's
+        # generic arch/config utilities can safely read this config even if
+        # they are handed the root config instead of language_config.
         self.hidden_size = self.language_config.hidden_size
+        self.num_hidden_layers = self.language_config.num_hidden_layers
+        self.num_attention_heads = self.language_config.num_attention_heads
+        self.num_key_value_heads = self.language_config.num_key_value_heads
+        self.head_dim = getattr(self.language_config, "head_dim", None)
+        self.max_position_embeddings = self.language_config.max_position_embeddings
         self.vocab_size = self.language_config.vocab_size
-        self.im_start_token_id = self.language_config
         self.pad_token_id = pad_token_id
         self.im_start_token_id = im_start_token_id
         self.im_end_token_id = im_end_token_id
 
         
         super().__init__(**kwargs)
+
+    def get_text_config(self, **kwargs):
+        return self.language_config
 
     def to_dict(self):
         output = super().to_dict()

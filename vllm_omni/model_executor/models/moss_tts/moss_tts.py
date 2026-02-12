@@ -270,7 +270,9 @@ class MossTTSModel:
 
         tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path, trust_remote_code=True)
 
-        audio_tokenizer = AutoModel.from_pretrained(codec_path, trust_remote_code=True)
+        audio_tokenizer = AutoModel.from_pretrained(
+            codec_path, trust_remote_code=True, torch_dtype=torch.bfloat16
+        )
 
         from .processing_moss_tts import MossTTSDelayProcessor
 
