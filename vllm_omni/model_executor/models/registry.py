@@ -53,6 +53,12 @@ _OMNI_MODELS = {
         "qwen3_tts",
         "Qwen3TTSModelForGeneration",
     ),
+    # MOSS-TTS delay-pattern model
+    "MossTTSDelayModel": (
+        "moss_tts",
+        "moss_tts",
+        "MossTTSModelForGeneration",
+    ),
 }
 
 
