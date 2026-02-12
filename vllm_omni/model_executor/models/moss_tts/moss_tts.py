@@ -70,6 +70,7 @@ class MossTTSModelForGeneration(nn.Module):
         text = runtime_additional_information.pop("text", [""])[0]
         language = runtime_additional_information.pop("language", [None])[0]
         instruction = runtime_additional_information.pop("instruct", [None])[0]
+        reference = runtime_additional_information.pop("reference", [None])[0]
 
         for key, value in runtime_additional_information.items():
             if isinstance(value, list) and len(value) > 0:
@@ -92,6 +93,7 @@ class MossTTSModelForGeneration(nn.Module):
             text=text,
             language=language,
             instruction=instruction,
+            reference=reference,
             **runtime_additional_information,
         )
 
@@ -308,6 +310,7 @@ class MossTTSModel:
         text: str,
         language: str | None = None,
         instruction: str | None = None,
+        reference: list | None = None,
         **kwargs: Any,
     ) -> tuple[list[torch.Tensor], int]:
         """
@@ -317,6 +320,7 @@ class MossTTSModel:
             text: The text to synthesize.
             language: Optional language hint (e.g. ``"en"``, ``"zh"``).
             instruction: Optional style/voice instruction.
+            reference: Optional list of reference audio paths/URLs for voice cloning.
             **kwargs: Override generation hyper-parameters.
 
         Returns:
@@ -330,6 +334,7 @@ class MossTTSModel:
             text=text,
             language=language,
             instruction=instruction,
+            reference=reference,
         )
 
         batch_feature = self.processor([user_msg])
