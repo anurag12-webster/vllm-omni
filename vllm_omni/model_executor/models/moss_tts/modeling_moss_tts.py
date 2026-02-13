@@ -421,16 +421,16 @@ class MossTTSDelayModel(MossTTSDelayPreTrainedModel):
         generation_ids = input_ids[:]
         is_stopping = torch.zeros(batch_size, dtype=torch.bool, device=device)
 
-        # 三个阶段: 1. 非 audio; 2. audio not delay; 3. audio delay
-        audio_lengths = torch.zeros(batch_size, dtype=torch.int64, device=device)  # 0 的时候表示阶段1;
+        # Three stages: 1. non-audio; 2. audio without delay; 3. audio with delay
+        audio_lengths = torch.zeros(batch_size, dtype=torch.int64, device=device)  # A value of 0 indicates stage 1.
         torch_int64_max = torch.iinfo(torch.int64).max
         delayed_lengths = torch.full(
             (batch_size,), torch_int64_max, dtype=torch.int64, device=device
-        )  # 最大值的时候表示阶段2;
+        )  # The maximum value indicates stage 2.
 
-        # 考虑 continuation 时 audio_start 已经在 input_ids 中的情况;
-        # NOTE 注意我们目前不考虑任何输入已经开始 delay 的情况;
-        # 需要同时考虑 continuation 和直接生成的情况;
+        # Consider the case where audio_start is already present in input_ids during continuation.
+        # NOTE: Currently we do not consider any case where the input has already entered the delay stage.
+        # We need to handle both continuation and direct generation cases.
         is_continuation = (input_ids[:, -1, 0] == self.config.audio_start_token_id) | (
             input_ids[:, -1, 0] == self.config.audio_assistant_gen_slot_token_id
         )
