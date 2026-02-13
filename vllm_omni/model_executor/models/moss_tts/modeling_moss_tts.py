@@ -484,7 +484,7 @@ class MossTTSDelayModel(MossTTSDelayPreTrainedModel):
                 pre_exclude_mask1, float("-inf")
             )
             if time_step == 0:
-                next_token_logits[0][..., 151662] = float("-inf")
+                next_token_logits[0][..., self.config.audio_assistant_delay_slot_token_id] = float("-inf")
             if time_step <= n_vq:
                 next_token_logits[0][..., self.config.im_end_token_id] = float("-inf")
 
