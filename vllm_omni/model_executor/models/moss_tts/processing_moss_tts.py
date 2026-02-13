@@ -520,7 +520,7 @@ class MossTTSDelayProcessor(ProcessorMixin):
         truncation: bool,
     ) -> torch.Tensor:
         """
-        此时的 content 已经是带上了对话格式
+        At this point, content already includes the dialog format.
         """
         if role == "user":
             audio_gen_slot_token = audio_delay_slot_token = self.audio_user_slot_token
@@ -663,8 +663,8 @@ class MossTTSDelayProcessor(ProcessorMixin):
 
     def decode(self, output: list[tuple[int, torch.Tensor]]):
         """
-        1. 这里不管怎样，都需要一个完整的 assistant generation ids;
-        2. 支持从任意位置进行截断；
+        1. Always requires a complete sequence of assistant generation IDs.
+        2. Supports truncation starting from any arbitrary position.
         """
 
         generated_messages = []

@@ -454,7 +454,7 @@ class MossTTSDelayModel(MossTTSDelayPreTrainedModel):
             [self.config.audio_assistant_gen_slot_token_id, self.config.audio_assistant_delay_slot_token_id]
         ] = False
 
-        # 注意 time_step 未必表示对于实际对话时，当前输出token的位置，因为有续写的情况;
+        # NOTE: time_step may not represent the exact token position in real dialogue because continuation is supported.
         for time_step in tqdm(range(max_new_tokens), desc=f"Generating bs{batch_size} ..."):
             outputs = self(
                 input_ids=current_input_ids,
@@ -469,9 +469,11 @@ class MossTTSDelayModel(MossTTSDelayPreTrainedModel):
                 for logit_idx, logit in enumerate(outputs.logits)
             ]  # List, len=n_vq+1, [batch_size, 1, vocab_size];
             next_token_logits[0] = next_token_logits[0].clone()
-            # 1. 先处理 text token;
+            # 1. Process text token first.
             next_text_token = torch.full((batch_size,), self.config.pad_token_id, device=device)
-            # 第二个 audio_assistant_delay_slot_token_id 和 audio_end 是不需要采样的，audio_start, 每一个 audio_assistant_gen_slot_token_ids 和第一个 audio_assistant_delay_slot_token_id 是需要采样的;
+            # The second audio_assistant_delay_slot_token_id and audio_end are not sampled.
+            # audio_start, each audio_assistant_gen_slot_token_id, and the first
+            # audio_assistant_delay_slot_token_id are sampled.
             next_text_token[~is_stopping & (delayed_lengths < n_vq)] = self.config.audio_assistant_delay_slot_token_id
             is_audio_eos = ~is_stopping & (delayed_lengths == n_vq)
             next_text_token[is_audio_eos] = self.config.audio_end_token_id
@@ -488,7 +490,7 @@ class MossTTSDelayModel(MossTTSDelayPreTrainedModel):
             if time_step <= n_vq:
                 next_token_logits[0][..., self.config.im_end_token_id] = float("-inf")
 
-            # 文本层不使用重复惩罚;
+            # Do not apply repetition penalty on the text layer.
             next_text_token[sampling_text_mask] = sample_token(
                 logits=next_token_logits[0][sampling_text_mask],
                 top_p=text_top_p,
@@ -496,15 +498,16 @@ class MossTTSDelayModel(MossTTSDelayPreTrainedModel):
                 do_sample=text_do_sample,
             )
             is_audio[next_text_token == self.config.audio_start_token_id] = True
-            # 只存在一种停止逻辑，即 next_text_token = <|im_end|>;
+            # Only one stopping condition exists: next_text_token = <|im_end|>.
             is_stopping[next_text_token == self.config.im_end_token_id] = True
 
-            # 2. 再处理 audio tokens;
-            # audio_start 和 audio_end 之外的内容直接pad，默认是 pad，我们只需要填充有值的部分即可;
+            # 2. Process audio tokens.
+            # Outside audio_start and audio_end, content is padded by default.
+            # We only need to fill positions that should carry values.
             next_audio_tokens = torch.full((batch_size, n_vq), self.config.audio_pad_code, device=device)
 
-            # 需要考虑的是与 audio_start 的距离;
-            # 先查看是否是pad的情况; true 表示有值;
+            # Consider distance from audio_start.
+            # Check whether each position should be padded; True indicates a valid value.
             pre_audio_mask = audio_lengths.unsqueeze(1) > torch.arange(n_vq, dtype=int, device=device).expand(
                 batch_size, n_vq
             )
@@ -529,7 +532,7 @@ class MossTTSDelayModel(MossTTSDelayPreTrainedModel):
                     do_sample=audio_do_sample,
                 )
 
-            # 这里显示的是下一个时间步时可以直接使用的 audio_lengths 和 delayed_lengths 的状态;
+            # Update audio_lengths and delayed_lengths to the state used at the next time step.
             # audio_lengths[(next_text_token == self.audio_start_token_id) & (audio_lengths > 0)] += 1
             # audio_lengths[(next_text_token == self.audio_start_token_id) | (next_text_token == self.audio_assistant_gen_slot_token_id)] += 1
             audio_lengths[

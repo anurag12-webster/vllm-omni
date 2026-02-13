@@ -73,8 +73,6 @@ def apply_repetition_penalty_delay_pattern(
     if penalty == 1.0 or prev_tokens is None:
         return logits
 
-    vocab_size = logits.size(-1)
-
     # Case 1: regular [N, V] (text layer)
     if logits.dim() == 2:
         prev_tokens_flat = prev_tokens.reshape(-1)
