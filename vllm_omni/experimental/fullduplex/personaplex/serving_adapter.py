@@ -40,6 +40,7 @@ class PersonaPlexServingSessionState:
     audio_buffer: PersonaPlexPcmAppendBuffer = field(default_factory=PersonaPlexPcmAppendBuffer)
     input_since_commit: bool = False
     speech_since_commit: bool = False
+    native_context_locked: bool = False
     committed_audio_payload: dict[str, object] | None = None
     committed_audio_operation_id: str | None = None
     committed_audio_reserved_bytes: int = 0

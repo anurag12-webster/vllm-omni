@@ -988,6 +988,81 @@ async def test_minicpmo_native_session_update_requires_ref_audio_before_enabling
     assert ("sid-runtime-update-ref-required", "session.update") not in engine.signals
 
 
+@pytest.mark.asyncio
+async def test_minicpmo_native_session_update_rejects_instructions_after_native_context_locked():
+    engine = FakeEngineClient()
+    handler = OmniDuplexSessionHandler(
+        chat_service=FakeChatService(engine),
+        config_timeout_s=0.1,
+        idle_timeout_s=1,
+    )
+    ws = TimedWebSocket()
+    ws.put(_native_session_create("sid-instructions-locked", modalities=["text"]))
+    ws.put(
+        {
+            "type": "input_audio_buffer.append",
+            "audio": _pcm_f32_b64(16000, value=0.05),
+            "format": "pcm_f32le",
+            "sample_rate_hz": 16000,
+            "duration_ms": 1000,
+            "is_speech": True,
+        }
+    )
+    ws.put(
+        {
+            "type": "turn.signal",
+            "event": "session.update",
+            "payload": {"instructions": "You are now a pirate."},
+        }
+    )
+    ws.put({"type": "session.close"})
+
+    await handler.handle_session(ws)
+
+    error = next(message for message in ws.sent if message.get("type") == "error")
+    assert error["code"] == "instructions_update_unsupported"
+    assert "session.updated" not in ws.sent_types()
+    assert ("sid-instructions-locked", "session.update") not in engine.signals
+
+
+@pytest.mark.asyncio
+async def test_minicpmo_native_session_update_allows_unchanged_instructions_after_lock():
+    engine = FakeEngineClient()
+    handler = OmniDuplexSessionHandler(
+        chat_service=FakeChatService(engine),
+        config_timeout_s=0.1,
+        idle_timeout_s=1,
+    )
+    ws = TimedWebSocket()
+    ws.put(_native_session_create("sid-instructions-unchanged", modalities=["text"]))
+    ws.put(
+        {
+            "type": "input_audio_buffer.append",
+            "audio": _pcm_f32_b64(16000, value=0.05),
+            "format": "pcm_f32le",
+            "sample_rate_hz": 16000,
+            "duration_ms": 1000,
+            "is_speech": True,
+        }
+    )
+    ws.put(
+        {
+            "type": "turn.signal",
+            "event": "session.update",
+            "payload": {"temperature": 0.3},
+        }
+    )
+    ws.put({"type": "session.close"})
+
+    await handler.handle_session(ws)
+
+    assert "session.updated" in ws.sent_types()
+    assert not any(
+        message.get("type") == "error" and message.get("code") == "instructions_update_unsupported"
+        for message in ws.sent
+    )
+
+
 def test_native_realtime_protocol_audio_delta_preserves_sample_rate_hz():
     ws = TimedWebSocket()
     protocol = NativeRealtimeSessionProtocol(ws)  # type: ignore[arg-type]

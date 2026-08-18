@@ -1156,6 +1156,16 @@ class OmniDuplexSessionHandler(
     ) -> dict[str, object] | None:
         if not self._uses_native_input_append(session):
             return None
+        if (
+            candidate_config.instructions != session.config.instructions
+            and self._runtime_session_state(session).native_context_locked
+        ):
+            return {
+                "type": "error",
+                "session_id": session.session_id,
+                "code": "instructions_update_unsupported",
+                "error": "session.update cannot change instructions after the native duplex context is initialized",
+            }
         if not self._config_requests_audio_output(candidate_config):
             return None
         if "ref_audio_data" in session.runtime_config:

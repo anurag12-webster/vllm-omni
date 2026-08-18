@@ -1381,6 +1381,7 @@ class DuplexSessionRunnerMixin:
                             continue
                         session.mark_user_input_activity()
                         native.input_since_commit = True
+                        native.native_context_locked = True
                         native.speech_since_commit = native.speech_since_commit or self._input_looks_like_speech(
                             event, payload, session=session
                         )

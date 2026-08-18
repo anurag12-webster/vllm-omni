@@ -64,6 +64,7 @@ class ServingRuntimeSessionState(Protocol):
     audio_buffer: PcmAppendBuffer
     input_since_commit: bool
     speech_since_commit: bool
+    native_context_locked: bool
     committed_audio_payload: dict[str, object] | None
     committed_audio_operation_id: str | None
     committed_audio_reserved_bytes: int
