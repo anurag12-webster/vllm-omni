@@ -21,6 +21,7 @@ from vllm_omni.experimental.fullduplex.engine.messages import DuplexFence
 from vllm_omni.experimental.fullduplex.openai.runtime_adapter import (
     ServingRuntimeConfigError,
 )
+from vllm_omni.experimental.fullduplex.personaplex.config import DEFAULT_PERSONA
 from vllm_omni.experimental.fullduplex.personaplex.data_plane import (
     PersonaPlexDataPlaneContext,
     PersonaPlexDataPlaneSession,
@@ -266,6 +267,30 @@ def test_personaplex_runtime_config_update_rejects_changed_persona() -> None:
         current,
     )
     assert unchanged["personaplex_persona"] == short_persona
+
+
+def test_personaplex_runtime_config_update_rejects_changed_voice() -> None:
+    adapter = PersonaPlexServingRuntimeAdapter(lambda *_: None)
+    current = {"personaplex_persona": DEFAULT_PERSONA, "personaplex_voice_prompt": "NATF2.pt"}
+
+    with pytest.raises(ServingRuntimeConfigError, match="voice"):
+        adapter.runtime_config_for_update(
+            SimpleNamespace(instructions=None, voice="OtherVoice.pt", extra_body={}),
+            current,
+        )
+
+    unchanged = adapter.runtime_config_for_update(
+        SimpleNamespace(instructions=None, voice="NATF2.pt", extra_body={}),
+        current,
+    )
+    assert unchanged["personaplex_voice_prompt"] == "NATF2.pt"
+
+
+def test_personaplex_rejects_minicpmo_only_opt_out_flag() -> None:
+    adapter = PersonaPlexServingRuntimeAdapter(lambda *_: None)
+
+    with pytest.raises(ServingRuntimeConfigError, match="minicpmo45_native_duplex"):
+        adapter.validate_client_extra_body({"minicpmo45_native_duplex": False})
 
 
 def test_pcm_buffer_emits_one_80ms_frame_transactionally() -> None:

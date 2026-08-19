@@ -31,6 +31,7 @@ _PRIVATE_RUNTIME_CONFIG_KEYS = frozenset(
     {
         "personaplex_prefill_slots",
         "personaplex_model_path",
+        "minicpmo45_native_duplex",
     }
 )
 
@@ -193,15 +194,18 @@ class PersonaPlexServingRuntimeAdapter:
         cls.validate_client_extra_body(getattr(config, "extra_body", None))
         new_persona = str(getattr(config, "instructions", None) or DEFAULT_PERSONA)
         if new_persona != current.get("personaplex_persona"):
-            # personaplex_prefill_slots is a one-time reservation from the
-            # original persona; a later change desyncs it from stage0.py's
-            # prefill embeddings.
             raise ServingRuntimeConfigError(
                 "PersonaPlex persona (instructions) cannot be changed after the session is created",
                 code="persona_update_unsupported",
             )
+        new_voice = cls._voice_name(getattr(config, "voice", None))
+        if new_voice != current.get("personaplex_voice_prompt"):
+            raise ServingRuntimeConfigError(
+                "PersonaPlex voice cannot be changed after the session is created",
+                code="voice_update_unsupported",
+            )
         runtime_config = deepcopy(dict(current))
-        runtime_config["personaplex_voice_prompt"] = cls._voice_name(getattr(config, "voice", None))
+        runtime_config["personaplex_voice_prompt"] = new_voice
         runtime_config["personaplex_persona"] = new_persona
         return runtime_config
 
