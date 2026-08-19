@@ -1049,7 +1049,7 @@ async def test_minicpmo_native_session_update_allows_unchanged_instructions_afte
         {
             "type": "turn.signal",
             "event": "session.update",
-            "payload": {"temperature": 0.3},
+            "payload": {"instructions": "You are a concise assistant.", "temperature": 0.3},
         }
     )
     ws.put({"type": "session.close"})
@@ -1061,6 +1061,53 @@ async def test_minicpmo_native_session_update_allows_unchanged_instructions_afte
         message.get("type") == "error" and message.get("code") == "instructions_update_unsupported"
         for message in ws.sent
     )
+
+
+@pytest.mark.asyncio
+async def test_minicpmo_native_session_update_allows_instructions_before_first_real_append():
+    engine = FakeEngineClient()
+    handler = OmniDuplexSessionHandler(
+        chat_service=FakeChatService(engine),
+        config_timeout_s=0.1,
+        idle_timeout_s=1,
+    )
+    appended_count_at_update: list[int] = []
+
+    def snapshot_appended_at_update(_ws: TimedWebSocket, data: dict[str, Any]) -> None:
+        if data.get("type") == "session.updated":
+            appended_count_at_update.append(len(engine.appended))
+
+    ws = TimedWebSocket(on_send=snapshot_appended_at_update)
+    ws.put(_native_session_create("sid-buffered-before-lock", modalities=["text"]))
+    ws.put(
+        {
+            "type": "input_audio_buffer.append",
+            "audio": _pcm_f32_b64(3200, value=0.05),
+            "format": "pcm_f32le",
+            "sample_rate_hz": 16000,
+            "duration_ms": 200,
+            "is_speech": True,
+        }
+    )
+    ws.put(
+        {
+            "type": "turn.signal",
+            "event": "session.update",
+            "payload": {"instructions": "You are now a pirate."},
+        }
+    )
+    ws.put({"type": "input_audio_buffer.commit", "final": True, "response_create": True})
+    ws.put({"type": "session.close"})
+
+    await handler.handle_session(ws)
+
+    assert appended_count_at_update == [0], "the update must succeed before any append reached the engine"
+    assert "session.updated" in ws.sent_types()
+    assert not any(
+        message.get("type") == "error" and message.get("code") == "instructions_update_unsupported"
+        for message in ws.sent
+    )
+    assert engine.appended, "the commit must still flush the buffered chunk after the update"
 
 
 def test_native_realtime_protocol_audio_delta_preserves_sample_rate_hz():

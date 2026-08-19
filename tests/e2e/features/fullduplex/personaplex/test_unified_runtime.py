@@ -18,6 +18,9 @@ from vllm_omni.experimental.fullduplex.engine.duplex_runtime import (
     DuplexInputMode,
 )
 from vllm_omni.experimental.fullduplex.engine.messages import DuplexFence
+from vllm_omni.experimental.fullduplex.openai.runtime_adapter import (
+    ServingRuntimeConfigError,
+)
 from vllm_omni.experimental.fullduplex.personaplex.data_plane import (
     PersonaPlexDataPlaneContext,
     PersonaPlexDataPlaneSession,
@@ -240,6 +243,29 @@ def test_personaplex_capabilities_are_honest() -> None:
     assert multi.supports_multi_session is True
     assert multi.supports_multi_session_same_replica is True
     assert multi.supports_barge_in is False
+
+
+def test_personaplex_runtime_config_update_rejects_changed_persona() -> None:
+    adapter = PersonaPlexServingRuntimeAdapter(lambda *_: None)
+    short_persona = "You are a helpful assistant."
+    longer_persona = (
+        "You are now a swashbuckling pirate captain who speaks entirely in "
+        "nautical slang, references buried treasure constantly, and never "
+        "breaks character no matter what the user asks."
+    )
+    current = {"personaplex_persona": short_persona, "personaplex_voice_prompt": "NATF2.pt"}
+
+    with pytest.raises(ServingRuntimeConfigError, match="persona"):
+        adapter.runtime_config_for_update(
+            SimpleNamespace(instructions=longer_persona, extra_body={}),
+            current,
+        )
+
+    unchanged = adapter.runtime_config_for_update(
+        SimpleNamespace(instructions=short_persona, extra_body={}),
+        current,
+    )
+    assert unchanged["personaplex_persona"] == short_persona
 
 
 def test_pcm_buffer_emits_one_80ms_frame_transactionally() -> None:
