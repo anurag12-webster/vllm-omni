@@ -1064,20 +1064,14 @@ async def test_minicpmo_native_session_update_allows_unchanged_instructions_afte
 
 
 @pytest.mark.asyncio
-async def test_minicpmo_native_session_update_allows_instructions_before_first_real_append():
+async def test_minicpmo_native_session_update_rejects_instructions_before_first_real_append():
     engine = FakeEngineClient()
     handler = OmniDuplexSessionHandler(
         chat_service=FakeChatService(engine),
         config_timeout_s=0.1,
         idle_timeout_s=1,
     )
-    appended_count_at_update: list[int] = []
-
-    def snapshot_appended_at_update(_ws: TimedWebSocket, data: dict[str, Any]) -> None:
-        if data.get("type") == "session.updated":
-            appended_count_at_update.append(len(engine.appended))
-
-    ws = TimedWebSocket(on_send=snapshot_appended_at_update)
+    ws = TimedWebSocket()
     ws.put(_native_session_create("sid-buffered-before-lock", modalities=["text"]))
     ws.put(
         {
@@ -1093,7 +1087,13 @@ async def test_minicpmo_native_session_update_allows_instructions_before_first_r
         {
             "type": "turn.signal",
             "event": "session.update",
-            "payload": {"instructions": "You are now a pirate."},
+            "payload": {
+                "instructions": (
+                    "You are now a swashbuckling pirate captain who speaks entirely in "
+                    "nautical slang, references buried treasure constantly, and never "
+                    "breaks character no matter what the user asks."
+                )
+            },
         }
     )
     ws.put({"type": "input_audio_buffer.commit", "final": True, "response_create": True})
@@ -1101,13 +1101,46 @@ async def test_minicpmo_native_session_update_allows_instructions_before_first_r
 
     await handler.handle_session(ws)
 
-    assert appended_count_at_update == [0], "the update must succeed before any append reached the engine"
-    assert "session.updated" in ws.sent_types()
-    assert not any(
-        message.get("type") == "error" and message.get("code") == "instructions_update_unsupported"
-        for message in ws.sent
+    error = next(message for message in ws.sent if message.get("type") == "error")
+    assert error["code"] == "instructions_update_unsupported"
+    assert "session.updated" not in ws.sent_types()
+    assert engine.appended, "the commit must still flush the buffered chunk despite the rejected update"
+
+
+@pytest.mark.asyncio
+async def test_minicpmo_native_session_update_rejects_native_duplex_mode_flip():
+    engine = FakeEngineClient()
+    handler = OmniDuplexSessionHandler(
+        chat_service=FakeChatService(engine),
+        config_timeout_s=0.1,
+        idle_timeout_s=1,
     )
-    assert engine.appended, "the commit must still flush the buffered chunk after the update"
+    ws = TimedWebSocket()
+    ws.put(_native_session_create("sid-native-duplex-flag-flip", modalities=["text"]))
+    ws.put(
+        {
+            "type": "turn.signal",
+            "event": "session.update",
+            "payload": {"extra_body": {"minicpmo45_native_duplex": False}},
+        }
+    )
+    ws.put(
+        {
+            "type": "turn.signal",
+            "event": "session.update",
+            "payload": {"instructions": "You are now a pirate."},
+        }
+    )
+    ws.put({"type": "session.close"})
+
+    await handler.handle_session(ws)
+
+    errors = [message for message in ws.sent if message.get("type") == "error"]
+    assert [error["code"] for error in errors] == [
+        "native_duplex_mode_update_unsupported",
+        "instructions_update_unsupported",
+    ]
+    assert "session.updated" not in ws.sent_types()
 
 
 def test_native_realtime_protocol_audio_delta_preserves_sample_rate_hz():

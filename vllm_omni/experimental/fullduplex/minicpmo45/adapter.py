@@ -66,7 +66,11 @@ class MiniCPMO45NativeDuplexServingAdapter:
         current: object,
     ) -> dict[str, object]:
         runtime_config = deepcopy(dict(current)) if isinstance(current, dict) else {}
-        runtime_config["instructions"] = config.instructions
+        if config.instructions != runtime_config.get("instructions"):
+            raise MiniCPMO45ClientRuntimeConfigError(
+                "instructions cannot be changed after the session is created",
+                code="instructions_update_unsupported",
+            )
         stage_max_tokens = runtime_config.get("duplex_stage_max_tokens")
         stage_max_tokens = deepcopy(stage_max_tokens) if isinstance(stage_max_tokens, dict) else {}
         stage_max_tokens["0"] = (
