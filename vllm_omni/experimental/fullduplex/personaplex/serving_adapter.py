@@ -15,6 +15,7 @@ from vllm_omni.experimental.fullduplex.openai.protocol import (
 )
 from vllm_omni.experimental.fullduplex.openai.runtime_adapter import (
     ServingRuntimeConfigError,
+    reject_changed_runtime_value,
 )
 from vllm_omni.experimental.fullduplex.personaplex.config import DEFAULT_PERSONA
 from vllm_omni.experimental.fullduplex.personaplex.data_plane import (
@@ -193,17 +194,19 @@ class PersonaPlexServingRuntimeAdapter:
     ) -> dict[str, object]:
         cls.validate_client_extra_body(getattr(config, "extra_body", None))
         new_persona = str(getattr(config, "instructions", None) or DEFAULT_PERSONA)
-        if new_persona != current.get("personaplex_persona"):
-            raise ServingRuntimeConfigError(
-                "PersonaPlex persona (instructions) cannot be changed after the session is created",
-                code="persona_update_unsupported",
-            )
+        reject_changed_runtime_value(
+            new_persona,
+            current.get("personaplex_persona"),
+            message="PersonaPlex persona (instructions) cannot be changed after the session is created",
+            code="persona_update_unsupported",
+        )
         new_voice = cls._voice_name(getattr(config, "voice", None))
-        if new_voice != current.get("personaplex_voice_prompt"):
-            raise ServingRuntimeConfigError(
-                "PersonaPlex voice cannot be changed after the session is created",
-                code="voice_update_unsupported",
-            )
+        reject_changed_runtime_value(
+            new_voice,
+            current.get("personaplex_voice_prompt"),
+            message="PersonaPlex voice cannot be changed after the session is created",
+            code="voice_update_unsupported",
+        )
         runtime_config = deepcopy(dict(current))
         runtime_config["personaplex_voice_prompt"] = new_voice
         runtime_config["personaplex_persona"] = new_persona

@@ -11,6 +11,7 @@ from vllm_omni.experimental.fullduplex.minicpmo45.policy import MiniCPMO45Duplex
 from vllm_omni.experimental.fullduplex.openai.protocol import DuplexSessionConfig
 from vllm_omni.experimental.fullduplex.openai.runtime_adapter import (
     ServingRuntimeConfigError,
+    reject_changed_runtime_value,
 )
 
 
@@ -66,11 +67,13 @@ class MiniCPMO45NativeDuplexServingAdapter:
         current: object,
     ) -> dict[str, object]:
         runtime_config = deepcopy(dict(current)) if isinstance(current, dict) else {}
-        if config.instructions != runtime_config.get("instructions"):
-            raise MiniCPMO45ClientRuntimeConfigError(
-                "instructions cannot be changed after the session is created",
-                code="instructions_update_unsupported",
-            )
+        reject_changed_runtime_value(
+            config.instructions,
+            runtime_config.get("instructions"),
+            message="instructions cannot be changed after the session is created",
+            code="instructions_update_unsupported",
+            error_cls=MiniCPMO45ClientRuntimeConfigError,
+        )
         stage_max_tokens = runtime_config.get("duplex_stage_max_tokens")
         stage_max_tokens = deepcopy(stage_max_tokens) if isinstance(stage_max_tokens, dict) else {}
         stage_max_tokens["0"] = (
