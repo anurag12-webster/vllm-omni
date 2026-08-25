@@ -46,6 +46,9 @@ from vllm_omni.experimental.fullduplex.openai.serving import (
 )
 from vllm_omni.experimental.fullduplex.openai.websocket import DuplexWebSocketActor
 from vllm_omni.experimental.fullduplex.output import attach_duplex_output_decision
+from vllm_omni.experimental.fullduplex.personaplex.serving_adapter import (
+    PersonaPlexServingRuntimeAdapter,
+)
 from vllm_omni.outputs import OmniRequestOutput
 
 pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
@@ -986,6 +989,23 @@ async def test_minicpmo_native_session_update_requires_ref_audio_before_enabling
     assert error["code"] == "ref_audio_required"
     assert "session.updated" not in ws.sent_types()
     assert ("sid-runtime-update-ref-required", "session.update") not in engine.signals
+
+
+def test_personaplex_candidate_update_does_not_leak_minicpmo_ref_audio_check():
+    handler = OmniDuplexSessionHandler(
+        chat_service=SimpleNamespace(engine_client=SimpleNamespace()),
+        serving_runtime_adapter=PersonaPlexServingRuntimeAdapter(lambda *_: None),
+    )
+    session = DuplexSession(
+        session_id="sid-personaplex-voice-change",
+        config=DuplexSessionConfig(modalities=["audio"], voice="NATF2.pt"),
+        capabilities=PersonaPlexServingRuntimeAdapter.capabilities(max_sessions=1),
+    )
+    candidate_config = DuplexSessionConfig(modalities=["audio"], voice="OtherVoice.pt")
+
+    error = handler._runtime_session_candidate_update_error(session, candidate_config)
+
+    assert error is None
 
 
 @pytest.mark.asyncio

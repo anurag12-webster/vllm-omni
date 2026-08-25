@@ -1166,6 +1166,8 @@ class OmniDuplexSessionHandler(
                 "code": "instructions_update_unsupported",
                 "error": "session.update cannot change instructions after the native duplex context is initialized",
             }
+        if session.config.extra_body.get("minicpmo45_native_duplex") is not True:
+            return None
         if not self._config_requests_audio_output(candidate_config):
             return None
         if "ref_audio_data" in session.runtime_config:
